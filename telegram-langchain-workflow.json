@@ -1,0 +1,336 @@
+{
+  "name": "tr3dbs",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        -112
+      ],
+      "id": "8819d863-0c93-4b7f-95ce-d4ed6e4bd0ef",
+      "name": "Telegram Trigger",
+      "webhookId": "a3b70819-87c3-423e-8fe4-c914afbcf5f9",
+      "credentials": {
+        "telegramApi": {
+          "id": "LzXcyi6jieZs9Do8",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const text = $json.message.text.toLowerCase();\nlet namespace;\nlet mode;\n\nif (text.startsWith('/studenthandbook')) {\n  namespace = 'studenthandbook';\n  mode = 'set';\n} else if (text.startsWith('/recipes')) {\n  namespace = 'recipes';\n  mode = 'set';\n} else if (text.startsWith('/onboarding')) {\n  namespace = 'onboarding';\n  mode = 'set';\n} else {\n  const data = this.getWorkflowStaticData('global');\n  namespace = data[$json.message.chat.id] || 'studenthandbook';\n  mode = 'query';\n}\n\n// Save namespace per user\nconst data = this.getWorkflowStaticData('global');\ndata[$json.message.chat.id] = namespace;\n\nreturn {\n  ...$json,\n  namespace,\n  mode\n};"
+      },
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        240,
+        0
+      ],
+      "id": "d09668a2-7a8a-48be-a41c-480bb643bb3f",
+      "name": "Namespace Selector"
+    },
+    {
+      "parameters": {
+        "options": {
+          "dimensions": 512
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1152,
+        432
+      ],
+      "id": "499c7973-7fab-4318-b1e0-ec6ce020476b",
+      "name": "Embeddings OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "qsxPQJZvlhWVRoqz",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        672,
+        272
+      ],
+      "id": "ab9d63a6-7952-41b1-9e15-857dbf7e0d6f",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "qsxPQJZvlhWVRoqz",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Namespace Selector').item.json.message.chat.id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1168,
+        0
+      ],
+      "id": "28e739f6-30cb-4144-9e31-66e8a2bc7026",
+      "name": "Telegram Reply",
+      "webhookId": "c8086ead-5121-41fe-9410-c8c768ee1d5b",
+      "credentials": {
+        "telegramApi": {
+          "id": "HOXij4joSTIYVeHJ",
+          "name": "Telegram account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message.text }}",
+        "options": {
+          "systemMessage": "=You are answering from the {{ $json.namespace }} database. Avoid speculations and anything out of context or whose context is irrelevant to the question. You should say, \"Sorry!!\", as I cannot find the relevant information in the knowledge base. Do not provide any additional information. You should not generate or interpret any response from your knowledge. "
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        672,
+        -16
+      ],
+      "id": "75e2059c-ba6c-4f02-8900-33029a70df67",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "get data from the message",
+        "pineconeIndex": {
+          "__rl": true,
+          "value": "icn8n",
+          "mode": "list",
+          "cachedResultName": "icn8n"
+        },
+        "options": {
+          "pineconeNamespace": "={{ $json.namespace }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePinecone",
+      "typeVersion": 1.3,
+      "position": [
+        1152,
+        192
+      ],
+      "id": "c598154d-ba9c-4c3b-acb6-82bea08832a8",
+      "name": "Pinecone Vector Store1",
+      "credentials": {
+        "pineconeApi": {
+          "id": "oBVvNFNl6KXl5TCy",
+          "name": "PineconeApi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.message.chat.id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        880,
+        384
+      ],
+      "id": "0e59844b-a7a8-45e7-aead-456391726d15",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "595fdd37-feac-4ce1-a4c9-867beaca2f81",
+              "leftValue": "={{ $json.mode }}",
+              "rightValue": "=set",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "97a63c57-55d1-4dbd-a29a-b48d8346b199",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Namespace Selector').item.json.message.chat.id }}",
+        "text": "={{ $('Namespace Selector').item.json.mode }} {{ \" to \" }}{{ $('Namespace Selector').item.json.namespace }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        432,
+        176
+      ],
+      "id": "847bf665-6ff0-45c9-a52b-56c131b4cfa2",
+      "name": "Telegram Reply1",
+      "webhookId": "c8086ead-5121-41fe-9410-c8c768ee1d5b",
+      "credentials": {
+        "telegramApi": {
+          "id": "HOXij4joSTIYVeHJ",
+          "name": "Telegram account 3"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Namespace Selector",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Namespace Selector": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pinecone Vector Store1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Pinecone Vector Store1",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Telegram Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Telegram Reply1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "ws69zNH3tNxAznlz"
+  },
+  "versionId": "de213ddf-9fad-4caa-bd45-ed49c0a5cefc",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9648c4ee61f573d4d9dcbb8adcf42bb7a2355892d8f4813e649217b3c3278859"
+  },
+  "id": "0HG9CJQO58kwkaDb",
+  "tags": []
+}
